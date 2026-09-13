@@ -74,11 +74,17 @@ async function processPdf(file) {
 
 function parseRows(text) {
   return text.split(/\n+/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
-    const date = line.match(/(\d{1,2})\s*月?\s*(\d{1,2})\s*日/);
+    const normalized = line.replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0));
+    const date = normalized.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[月火水木金土日])?/);
     if (!date) return [];
-    const rest = line.slice(date.index + date[0].length).trim();
-    const parts = rest.split(/\s{2,}|	+/).filter(Boolean);
-    return [{ date: `${date[1]}月${date[2]}日`, menu: parts[0] || "（未取得）", ingredients: parts.slice(1).join("、") || "（未取得）" }];
+    const rest = normalized.slice(date.index + date[0].length).trim();
+    const parts = rest.split(/\s{2,}|\t+/).filter(Boolean);
+    const menu = parts.length > 1 ? parts : rest.split(/\s+/).filter(Boolean);
+    return [{
+      date: `${date[1]}月${date[2]}日`,
+      menu,
+      ingredients: "（材料欄を読み取り中）",
+    }];
   });
 }
 
@@ -87,7 +93,7 @@ function renderRows(rows) {
   resultNote.textContent = `${rows.length}件の給食データを表示しています。`;
   results.replaceChildren(...rows.map((row) => {
     const tr = document.createElement("tr");
-    [row.date, row.menu, row.ingredients].forEach((value) => {
+    [row.date, row.menu.join("、"), row.ingredients].forEach((value) => {
       const td = document.createElement("td");
       td.textContent = value;
       tr.append(td);
