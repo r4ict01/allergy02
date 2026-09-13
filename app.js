@@ -11,15 +11,20 @@ const resultSection = document.querySelector("#result-section");
 const resultNote = document.querySelector("#result-note");
 const results = document.querySelector("#results");
 const allergenButton = document.querySelector("#allergen-button");
+const allergenSelect = document.querySelector("#allergen-select");
 let allergenCheckEnabled = false;
 
-const allergenTerms = [
-  "牛乳", "乳", "チーズ", "ヨーグルト", "バター", "脱脂粉乳",
-  "小麦", "パン", "ラーメン", "うどん", "スパゲッティ", "麩",
-  "卵", "たまご", "玉子", "液卵", "オムレツ", "マヨネーズ",
-  "えび", "エビ", "かに", "カニ", "そば", "落花生", "ピーナッツ",
-  "くるみ", "胡桃", "大豆", "豆腐", "みそ", "しょうゆ",
-];
+const allergenTerms = {
+  milk: ["牛乳", "乳", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
+  wheat: ["小麦", "パン", "ラーメン", "うどん", "スパゲッティ", "麩"],
+  egg: ["卵", "たまご", "玉子", "液卵", "オムレツ", "マヨネーズ"],
+  shrimp: ["えび", "エビ"],
+  crab: ["かに", "カニ"],
+  buckwheat: ["そば"],
+  peanut: ["落花生", "ピーナッツ"],
+  walnut: ["くるみ", "胡桃"],
+  soy: ["大豆", "豆腐", "みそ", "しょうゆ"],
+};
 
 input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
 ["dragenter", "dragover"].forEach((eventName) =>
@@ -57,6 +62,13 @@ allergenButton.addEventListener("click", () => {
   document.querySelectorAll(".checkable").forEach((element) => {
     element.replaceChildren(...highlightAllergens(element.dataset.value || ""));
   });
+});
+allergenSelect.addEventListener("change", () => {
+  if (allergenCheckEnabled) {
+    document.querySelectorAll(".checkable").forEach((element) => {
+      element.replaceChildren(...highlightAllergens(element.dataset.value || ""));
+    });
+  }
 });
 
 async function processPdf(file) {
@@ -209,7 +221,11 @@ function highlightAllergens(value) {
     const text = document.createTextNode(value);
     return [text];
   }
-  const pattern = new RegExp(`(${allergenTerms.join("|")})`, "g");
+  const selectedTerms = allergenSelect.selectedOptions
+    ? [...allergenSelect.selectedOptions].flatMap((option) => allergenTerms[option.value])
+    : [];
+  if (selectedTerms.length === 0) return [document.createTextNode(value)];
+  const pattern = new RegExp(`(${selectedTerms.join("|")})`, "g");
   const fragments = [];
   let lastIndex = 0;
   for (const match of value.matchAll(pattern)) {

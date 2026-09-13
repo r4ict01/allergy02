@@ -31,6 +31,18 @@
       </section>
 
       <section id="result-section" hidden aria-labelledby="result-title">
+        <label class="allergen-select-label" for="allergen-select">材料の選択</label>
+        <select id="allergen-select" class="allergen-select" multiple size="4" aria-label="アレルギー確認対象の材料">
+          <option value="milk" selected>牛乳・乳製品</option>
+          <option value="wheat" selected>小麦</option>
+          <option value="egg" selected>卵</option>
+          <option value="shrimp" selected>えび</option>
+          <option value="crab" selected>かに</option>
+          <option value="buckwheat" selected>そば</option>
+          <option value="peanut" selected>落花生</option>
+          <option value="walnut" selected>くるみ</option>
+          <option value="soy" selected>大豆</option>
+        </select>
         <button id="allergen-button" class="allergen-button" type="button" aria-pressed="false">
           アレルギーチェック
         </button>
