@@ -19,6 +19,7 @@ const platingResult = document.querySelector("#plating-result");
 const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
 let flaggedMenuTerms = [];
+let platingFile = null;
 
 const allergenTerms = {
   milk: ["牛乳", "乳", "（乳）", "(乳)", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
@@ -94,6 +95,7 @@ async function processPlatingPdf(file) {
     platingStatus.textContent = "20MB以下のPDFファイルを選択してください。";
     return;
   }
+  platingFile = file;
   platingStatus.textContent = "盛り付け表を解析しています…";
   try {
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
@@ -314,6 +316,7 @@ function refreshAllergenHighlights() {
       flaggedMenuTerms.push(normalize(value));
     }
   });
+  if (platingFile) processPlatingPdf(platingFile);
 }
 
 function drawMenuWarnings(canvas, viewport, items) {
@@ -321,7 +324,7 @@ function drawMenuWarnings(canvas, viewport, items) {
   const context = canvas.getContext("2d");
   context.strokeStyle = "#c92a2a";
   context.lineWidth = 3;
-  items.filter((item) => flaggedMenuTerms.some((menu) => normalize(item.str).includes(menu))).forEach((item) => {
+  items.filter((item) => flaggedMenuTerms.some((menu) => menuMatches(item.str, menu))).forEach((item) => {
     const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
     const width = (item.width || 30) * viewport.scale;
     const height = Math.abs(item.transform[3]) * viewport.scale;
@@ -332,6 +335,21 @@ function drawMenuWarnings(canvas, viewport, items) {
     context.lineTo(x, y);
     context.stroke();
   });
+}
+
+function menuMatches(candidate, flaggedMenu) {
+  const candidateText = normalize(candidate);
+  return menuVariants(flaggedMenu).some((variant) => candidateText.includes(variant));
+}
+
+function menuVariants(value) {
+  const normalized = normalize(value).replace(/[（(].*?[）)]/g, "");
+  return [...new Set([
+    normalized,
+    normalized.replaceAll("しょくパン", "食パン"),
+    normalized.replaceAll("むぎごはん", "麦ごはん"),
+    normalized.replaceAll("もちげんまいごはん", "もち玄米ごはん"),
+  ])].filter((variant) => variant.length > 1);
 }
 
 function escapeRegExp(value) {
