@@ -398,7 +398,8 @@ function normalizeForMatch(value) {
     .replaceAll("とうふ", "豆腐")
     .replaceAll("みそ", "味噌")
     .replaceAll("しょうゆ", "醤油")
-    .replaceAll("しる", "汁");
+    .replaceAll("しる", "汁")
+    .replaceAll("あげ", "揚げ");
 }
 
 function escapeRegExp(value) {
