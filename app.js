@@ -370,7 +370,9 @@ function splitLineByColumn(line) {
 
 function menuMatches(candidate, flaggedMenu) {
   const candidateText = normalizeForMatch(candidate);
-  return menuVariants(flaggedMenu).some((variant) => candidateText.includes(variant));
+  return menuVariants(flaggedMenu).some((variant) =>
+    candidateText.includes(variant) || variant.includes(candidateText),
+  );
 }
 
 function menuVariants(value) {
