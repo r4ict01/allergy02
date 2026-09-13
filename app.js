@@ -107,7 +107,10 @@ async function processPlatingPdf(file) {
       platingStatus.textContent = "盛り付け表の画像を表示しています。";
       return;
     }
-    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pdf = await pdfjsLib.getDocument({
+      data: await file.arrayBuffer(),
+      disableWorker: true,
+    }).promise;
     platingPages.replaceChildren();
     const platingLines = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -150,7 +153,10 @@ async function processPdf(file) {
       status.textContent = "画像のOCR解析が完了しました。";
       return;
     }
-    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pdf = await pdfjsLib.getDocument({
+      data: await file.arrayBuffer(),
+      disableWorker: true,
+    }).promise;
     const pages = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
