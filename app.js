@@ -91,13 +91,19 @@ allergenSelect.addEventListener("change", () => {
 });
 
 async function processPlatingPdf(file) {
-  if (file.type !== "application/pdf" || file.size > 20 * 1024 * 1024) {
-    platingStatus.textContent = "20MB以下のPDFファイルを選択してください。";
+  if ((!file.type.startsWith("image/") && file.type !== "application/pdf") || file.size > 20 * 1024 * 1024) {
+    platingStatus.textContent = "20MB以下のPDFまたは画像ファイルを選択してください。";
     return;
   }
   platingFile = file;
   platingStatus.textContent = "盛り付け表を解析しています…";
   try {
+    if (file.type.startsWith("image/")) {
+      platingPages.replaceChildren(await imageToCanvas(file));
+      platingResult.hidden = false;
+      platingStatus.textContent = "盛り付け表の画像を表示しています。";
+      return;
+    }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     platingPages.replaceChildren();
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -120,8 +126,8 @@ async function processPlatingPdf(file) {
 }
 
 async function processPdf(file) {
-  if (file.type !== "application/pdf" || file.size > 20 * 1024 * 1024) {
-    status.textContent = "20MB以下のPDFファイルを選択してください。";
+  if ((!file.type.startsWith("image/") && file.type !== "application/pdf") || file.size > 20 * 1024 * 1024) {
+    status.textContent = "20MB以下のPDFまたは画像ファイルを選択してください。";
     return;
   }
 
@@ -129,6 +135,14 @@ async function processPdf(file) {
   progress.value = 5;
   status.textContent = "PDFを解析しています…";
   try {
+    if (file.type.startsWith("image/")) {
+      if (!window.Tesseract) throw new Error("OCR library is unavailable");
+      const result = await window.Tesseract.recognize(file, "jpn");
+      renderOcrResult(result.data.text);
+      progress.value = 100;
+      status.textContent = "画像のOCR解析が完了しました。";
+      return;
+    }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     const pages = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
@@ -136,6 +150,32 @@ async function processPdf(file) {
       const content = await page.getTextContent();
       pages.push(content.items);
       progress.value = 5 + (pageNumber / pdf.numPages) * 70;
+    }
+
+    async function imageToCanvas(file) {
+      const image = new Image();
+      image.src = URL.createObjectURL(file);
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      canvas.getContext("2d").drawImage(image, 0, 0);
+      URL.revokeObjectURL(image.src);
+      return canvas;
+    }
+
+    function renderOcrResult(text) {
+      const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      resultSection.hidden = false;
+      resultNote.textContent = "画像から読み取った内容を表示しています。";
+      results.replaceChildren(...lines.map((line) => {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 3;
+        cell.textContent = line;
+        row.append(cell);
+        return row;
+      }));
     }
     const rows = pages.flatMap(parsePageItems);
     if (rows.length === 0) {
