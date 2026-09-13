@@ -126,22 +126,17 @@ async function processPdf(file) {
         return row;
       }));
       platingPages.replaceChildren();
-      if (visibleLines.length === 0) {
-        platingStatus.textContent = "文字情報がないため、盛り付け表を画像として表示しています。";
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-          const page = await pdf.getPage(pageNumber);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-          platingPages.append(canvas);
-        }
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        platingPages.append(canvas);
       }
       platingResult.hidden = false;
-      if (visibleLines.length > 0) {
-        platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を表示しています。`;
-      }
+      platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を画像で表示しています。`;
     } catch (error) {
       console.error(error);
       platingStatus.textContent = "盛り付け表PDFの解析に失敗しました。";
