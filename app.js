@@ -30,7 +30,7 @@ const allergenTerms = {
   buckwheat: ["そば"],
   peanut: ["落花生", "ピーナッツ"],
   walnut: ["くるみ", "胡桃"],
-  soy: ["大豆", "豆腐", "みそ", "しょうゆ"],
+  soy: ["大豆", "豆腐", "とうふ", "みそ", "味噌", "しょうゆ", "醤油"],
 };
 
 input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
@@ -308,7 +308,8 @@ function getSelectedTerms() {
 }
 
 function hasSelectedAllergen(value) {
-  return getSelectedTerms().some((term) => value.includes(term));
+  const normalizedValue = normalizeForMatch(value);
+  return getSelectedTerms().some((term) => normalizedValue.includes(normalizeForMatch(term)));
 }
 
 function refreshAllergenHighlights() {
@@ -368,12 +369,12 @@ function splitLineByColumn(line) {
 }
 
 function menuMatches(candidate, flaggedMenu) {
-  const candidateText = normalize(candidate);
+  const candidateText = normalizeForMatch(candidate);
   return menuVariants(flaggedMenu).some((variant) => candidateText.includes(variant));
 }
 
 function menuVariants(value) {
-  const normalized = normalize(value).replace(/[（(].*?[）)]/g, "");
+  const normalized = normalizeForMatch(value).replace(/[（(].*?[）)]/g, "");
   return [...new Set([
     normalized,
     normalized.replaceAll("しょくパン", "食パン"),
@@ -383,7 +384,19 @@ function menuVariants(value) {
     normalized.replaceAll("きんしたまご", "錦糸玉子"),
     normalized.replaceAll("しろみそしる", "白みそ汁"),
     normalized.replaceAll("しろみそ", "白みそ"),
+    normalized.replaceAll("とうふ", "豆腐"),
+    normalized.replaceAll("みそ", "味噌"),
+    normalized.replaceAll("しる", "汁"),
+    normalized.replaceAll("しょうゆ", "醤油"),
   ])].filter((variant) => variant.length > 1);
+}
+
+function normalizeForMatch(value) {
+  return normalize(value)
+    .replaceAll("とうふ", "豆腐")
+    .replaceAll("みそ", "味噌")
+    .replaceAll("しょうゆ", "醤油")
+    .replaceAll("しる", "汁");
 }
 
 function escapeRegExp(value) {
