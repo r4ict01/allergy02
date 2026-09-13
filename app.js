@@ -12,15 +12,13 @@ const resultNote = document.querySelector("#result-note");
 const results = document.querySelector("#results");
 const allergenButton = document.querySelector("#allergen-button");
 const allergenSelect = document.querySelector("#allergen-select");
-const platingInput = document.querySelector("#plating-input");
-const platingDropZone = document.querySelector("#plating-drop-zone");
 const platingStatus = document.querySelector("#plating-status");
 const notationStatus = document.querySelector("#notation-status");
 const platingResult = document.querySelector("#plating-result");
 const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
 let flaggedMenuTerms = [];
-let platingFile = null;
+let materialPdf = null;
 let mealMenuTerms = [];
 let platingLinesCache = [];
 
@@ -37,7 +35,6 @@ const allergenTerms = {
 };
 
 input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
-platingInput.addEventListener("change", () => platingInput.files[0] && processPlatingPdf(platingInput.files[0]));
 ["dragenter", "dragover"].forEach((eventName) =>
   dropZone.addEventListener(eventName, (event) => {
     event.preventDefault();
@@ -54,28 +51,18 @@ dropZone.addEventListener("drop", (event) => {
   const file = event.dataTransfer.files[0];
   if (file) processPdf(file);
 });
-["dragenter", "dragover"].forEach((eventName) =>
-  platingDropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    platingDropZone.classList.add("is-dragging");
-  }),
-);
-["dragleave", "drop"].forEach((eventName) =>
-  platingDropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    platingDropZone.classList.remove("is-dragging");
-  }),
-);
-platingDropZone.addEventListener("drop", (event) => {
-  const file = event.dataTransfer.files[0];
-  if (file) processPlatingPdf(file);
-});
 document.querySelector("#clear-button").addEventListener("click", () => {
   input.value = "";
   resultSection.hidden = true;
   results.replaceChildren();
   status.textContent = "PDFを選択してください。";
   progress.hidden = true;
+  materialPdf = null;
+  platingLinesCache = [];
+  platingPages.replaceChildren();
+  platingResult.hidden = true;
+  platingStatus.textContent = "材料表PDFの2ページ目を自動表示します。";
+  notationStatus.textContent = "";
   allergenCheckEnabled = false;
   flaggedMenuTerms = [];
   allergenButton.classList.remove("is-active");
@@ -92,48 +79,6 @@ allergenButton.addEventListener("click", () => {
 allergenSelect.addEventListener("change", () => {
   refreshAllergenHighlights();
 });
-
-async function processPlatingPdf(file) {
-  if ((!isPdfFile(file) && !isImageFile(file)) || file.size > 20 * 1024 * 1024) {
-    platingStatus.textContent = "20MB以下のPDFまたは画像ファイルを選択してください。";
-    return;
-  }
-  platingFile = file;
-  platingStatus.textContent = "盛り付け表を解析しています…";
-  try {
-    if (isImageFile(file)) {
-      platingPages.replaceChildren(await imageToCanvas(file));
-      platingResult.hidden = false;
-      platingStatus.textContent = "盛り付け表の画像を表示しています。";
-      return;
-    }
-    const pdf = await pdfjsLib.getDocument({
-      data: await file.arrayBuffer(),
-      disableWorker: true,
-    }).promise;
-    platingPages.replaceChildren();
-    const platingLines = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      platingLines.push(...getPlatingLines(content.items));
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-      drawMenuWarnings(canvas, viewport, content.items);
-      platingPages.append(canvas);
-    }
-    platingLinesCache = platingLines;
-    platingResult.hidden = false;
-    platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を画像で表示しています。`;
-    verifyMenuNotation(platingLines);
-  } catch (error) {
-    console.error(error);
-    platingStatus.textContent = `盛り付け表の読み込みに失敗しました: ${error.message || "不明なエラー"}`;
-  }
-}
 
 async function processPdf(file) {
   if ((!isPdfFile(file) && !isImageFile(file)) || file.size > 20 * 1024 * 1024) {
@@ -199,12 +144,31 @@ async function processPdf(file) {
       return;
     }
     renderRows(rows);
+    materialPdf = pdf;
+    if (pdf.numPages >= 2) await renderPlatingPage(pdf);
+    else platingStatus.textContent = "材料表PDFに2ページ目がないため、盛り付け表を表示できません。";
     progress.value = 100;
     status.textContent = `${pdf.numPages}ページの解析が完了しました。`;
   } catch (error) {
     console.error(error);
     status.textContent = `材料表の読み込みに失敗しました: ${error.message || "不明なエラー"}`;
   }
+}
+
+async function renderPlatingPage(pdf) {
+  const page = await pdf.getPage(2);
+  const content = await page.getTextContent();
+  const viewport = page.getViewport({ scale: 1.5 });
+  const canvas = document.createElement("canvas");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  drawMenuWarnings(canvas, viewport, content.items);
+  platingPages.replaceChildren(canvas);
+  platingLinesCache = getPlatingLines(content.items);
+  platingResult.hidden = false;
+  platingStatus.textContent = "材料表PDFの2ページ目を盛り付け表として表示しています。";
+  verifyMenuNotation(platingLinesCache);
 }
 
 function isPdfFile(file) {
@@ -413,7 +377,7 @@ function refreshAllergenHighlights() {
       flaggedMenuTerms.push(normalize(value));
     }
   });
-  if (platingFile) processPlatingPdf(platingFile);
+  if (materialPdf) renderPlatingPage(materialPdf);
 }
 
 function drawMenuWarnings(canvas, viewport, items) {
