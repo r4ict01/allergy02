@@ -203,7 +203,7 @@ function renderRows(rows) {
     const tr = document.createElement("tr");
     [row.date, row.menu.join("、"), row.ingredients].forEach((value, index) => {
       const td = document.createElement("td");
-      if (index !== 2) {
+      if (index === 0) {
         td.textContent = value;
       } else {
         td.className = "checkable";
