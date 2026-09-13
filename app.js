@@ -267,6 +267,10 @@ function renderRows(rows) {
         td.className = "checkable";
         td.dataset.kind = index === 1 ? "menu" : "ingredients";
         td.dataset.value = value;
+        if (index === 1) td.dataset.allergenSource = `${value} ${row.ingredients}`;
+        if (index === 1 && allergenCheckEnabled && hasSelectedAllergen(td.dataset.allergenSource)) {
+          td.classList.add("allergen-warning");
+        }
         td.append(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
       }
       tr.append(td);
@@ -311,8 +315,14 @@ function refreshAllergenHighlights() {
   flaggedMenuTerms = [];
   document.querySelectorAll(".checkable").forEach((element) => {
     const value = element.dataset.value || "";
+    element.classList.remove("allergen-warning");
     element.replaceChildren(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
-    if (allergenCheckEnabled && element.dataset.kind === "menu" && hasSelectedAllergen(value)) {
+    if (
+      allergenCheckEnabled &&
+      element.dataset.kind === "menu" &&
+      hasSelectedAllergen(element.dataset.allergenSource || value)
+    ) {
+      element.classList.add("allergen-warning");
       flaggedMenuTerms.push(normalize(value));
     }
   });
@@ -371,6 +381,8 @@ function menuVariants(value) {
     normalized.replaceAll("むぎごはん", "麦ごはん"),
     normalized.replaceAll("もちげんまいごはん", "もち玄米ごはん"),
     normalized.replaceAll("きんしたまご", "錦糸玉子"),
+    normalized.replaceAll("しろみそしる", "白みそ汁"),
+    normalized.replaceAll("しろみそ", "白みそ"),
   ])].filter((variant) => variant.length > 1);
 }
 
