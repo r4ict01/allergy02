@@ -324,10 +324,18 @@ function drawMenuWarnings(canvas, viewport, items) {
   const context = canvas.getContext("2d");
   context.strokeStyle = "#c92a2a";
   context.lineWidth = 3;
-  items.filter((item) => flaggedMenuTerms.some((menu) => menuMatches(item.str, menu))).forEach((item) => {
-    const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
-    const width = (item.width || 30) * viewport.scale;
-    const height = Math.abs(item.transform[3]) * viewport.scale;
+  const positioned = items
+    .filter((item) => item.str.trim())
+    .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5], source: item }));
+  groupByLine(positioned)
+    .filter((line) => flaggedMenuTerms.some((menu) => menuMatches(line.map((item) => item.text).join(""), menu)))
+    .forEach((line) => {
+    const first = line[0].source;
+    const last = line.at(-1).source;
+    const [x, y] = viewport.convertToViewportPoint(first.transform[4], first.transform[5]);
+    const end = viewport.convertToViewportPoint(last.transform[4] + (last.width || 30), last.transform[5]);
+    const width = end[0] - x;
+    const height = Math.max(...line.map((item) => Math.abs(item.source.transform[3]))) * viewport.scale;
     context.beginPath();
     context.moveTo(x, y - height);
     context.lineTo(x + width, y);
@@ -347,8 +355,10 @@ function menuVariants(value) {
   return [...new Set([
     normalized,
     normalized.replaceAll("しょくパン", "食パン"),
+    normalized.replaceAll("くろコッペパン", "黒コッペパン"),
     normalized.replaceAll("むぎごはん", "麦ごはん"),
     normalized.replaceAll("もちげんまいごはん", "もち玄米ごはん"),
+    normalized.replaceAll("きんしたまご", "錦糸玉子"),
   ])].filter((variant) => variant.length > 1);
 }
 
