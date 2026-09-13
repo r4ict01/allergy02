@@ -15,7 +15,7 @@ const allergenSelect = document.querySelector("#allergen-select");
 let allergenCheckEnabled = false;
 
 const allergenTerms = {
-  milk: ["牛乳", "乳", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
+  milk: ["牛乳", "乳", "（乳）", "(乳)", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
   wheat: ["小麦", "パン", "ラーメン", "うどん", "スパゲッティ", "麩"],
   egg: ["卵", "たまご", "玉子", "液卵", "オムレツ", "マヨネーズ"],
   shrimp: ["えび", "エビ"],
@@ -225,7 +225,7 @@ function highlightAllergens(value) {
     ? [...allergenSelect.selectedOptions].flatMap((option) => allergenTerms[option.value])
     : [];
   if (selectedTerms.length === 0) return [document.createTextNode(value)];
-  const pattern = new RegExp(`(${selectedTerms.join("|")})`, "g");
+  const pattern = new RegExp(`(${selectedTerms.map(escapeRegExp).join("|")})`, "g");
   const fragments = [];
   let lastIndex = 0;
   for (const match of value.matchAll(pattern)) {
@@ -238,4 +238,8 @@ function highlightAllergens(value) {
   }
   fragments.push(document.createTextNode(value.slice(lastIndex)));
   return fragments;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
