@@ -109,8 +109,9 @@ function parsePageItems(items) {
       );
     const ingredients = lines
       .filter((line) => line.some((item) => /\d/.test(item.text)))
-      .map((line) => line.map((item) => item.text).join(" "))
+      .map((line) => line.filter((item) => !/\d/.test(item.text)).map((item) => item.text).join(""))
       .filter((text) => !/エネルギー|塩分/.test(text))
+      .filter(Boolean)
       .join("、");
     return {
       date: `${date.match[1]}月${date.match[2]}日`,
