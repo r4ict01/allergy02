@@ -10,6 +10,16 @@ const progress = document.querySelector("#progress");
 const resultSection = document.querySelector("#result-section");
 const resultNote = document.querySelector("#result-note");
 const results = document.querySelector("#results");
+const allergenButton = document.querySelector("#allergen-button");
+let allergenCheckEnabled = false;
+
+const allergenTerms = [
+  "牛乳", "乳", "チーズ", "ヨーグルト", "バター", "脱脂粉乳",
+  "小麦", "パン", "ラーメン", "うどん", "スパゲッティ", "麩",
+  "卵", "たまご", "玉子", "液卵", "オムレツ", "マヨネーズ",
+  "えび", "エビ", "かに", "カニ", "そば", "落花生", "ピーナッツ",
+  "くるみ", "胡桃", "大豆", "豆腐", "みそ", "しょうゆ",
+];
 
 input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
 ["dragenter", "dragover"].forEach((eventName) =>
@@ -34,6 +44,19 @@ document.querySelector("#clear-button").addEventListener("click", () => {
   results.replaceChildren();
   status.textContent = "PDFを選択してください。";
   progress.hidden = true;
+  allergenCheckEnabled = false;
+  allergenButton.classList.remove("is-active");
+  allergenButton.setAttribute("aria-pressed", "false");
+  allergenButton.textContent = "アレルギーチェック";
+});
+allergenButton.addEventListener("click", () => {
+  allergenCheckEnabled = !allergenCheckEnabled;
+  allergenButton.classList.toggle("is-active", allergenCheckEnabled);
+  allergenButton.setAttribute("aria-pressed", String(allergenCheckEnabled));
+  allergenButton.textContent = allergenCheckEnabled ? "アレルギーチェック中" : "アレルギーチェック";
+  document.querySelectorAll(".checkable").forEach((element) => {
+    element.replaceChildren(...highlightAllergens(element.dataset.value || ""));
+  });
 });
 
 async function processPdf(file) {
@@ -166,11 +189,37 @@ function renderRows(rows) {
   resultNote.textContent = `${rows.length}件の給食データを表示しています。`;
   results.replaceChildren(...rows.map((row) => {
     const tr = document.createElement("tr");
-    [row.date, row.menu.join("、"), row.ingredients].forEach((value) => {
+    [row.date, row.menu.join("、"), row.ingredients].forEach((value, index) => {
       const td = document.createElement("td");
-      td.textContent = value;
+      if (index === 0 || !allergenCheckEnabled) {
+        td.textContent = value;
+      } else {
+        td.className = "checkable";
+        td.dataset.value = value;
+        td.append(...highlightAllergens(value));
+      }
       tr.append(td);
     });
     return tr;
   }));
+}
+
+function highlightAllergens(value) {
+  if (!allergenCheckEnabled) {
+    const text = document.createTextNode(value);
+    return [text];
+  }
+  const pattern = new RegExp(`(${allergenTerms.join("|")})`, "g");
+  const fragments = [];
+  let lastIndex = 0;
+  for (const match of value.matchAll(pattern)) {
+    fragments.push(document.createTextNode(value.slice(lastIndex, match.index)));
+    const warning = document.createElement("span");
+    warning.className = "allergen-warning";
+    warning.textContent = match[0];
+    fragments.push(warning);
+    lastIndex = match.index + match[0].length;
+  }
+  fragments.push(document.createTextNode(value.slice(lastIndex)));
+  return fragments;
 }
