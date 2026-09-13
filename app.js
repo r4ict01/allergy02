@@ -18,6 +18,7 @@ const platingStatus = document.querySelector("#plating-status");
 const platingResult = document.querySelector("#plating-result");
 const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
+let flaggedMenuTerms = [];
 
 const allergenTerms = {
   milk: ["牛乳", "乳", "（乳）", "(乳)", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
@@ -72,6 +73,7 @@ document.querySelector("#clear-button").addEventListener("click", () => {
   status.textContent = "PDFを選択してください。";
   progress.hidden = true;
   allergenCheckEnabled = false;
+  flaggedMenuTerms = [];
   allergenButton.classList.remove("is-active");
   allergenButton.setAttribute("aria-pressed", "false");
   allergenButton.textContent = "アレルギーチェック";
@@ -81,16 +83,10 @@ allergenButton.addEventListener("click", () => {
   allergenButton.classList.toggle("is-active", allergenCheckEnabled);
   allergenButton.setAttribute("aria-pressed", String(allergenCheckEnabled));
   allergenButton.textContent = allergenCheckEnabled ? "アレルギーチェック中" : "アレルギーチェック";
-  document.querySelectorAll(".checkable").forEach((element) => {
-    element.replaceChildren(...highlightAllergens(element.dataset.value || ""));
-  });
+  refreshAllergenHighlights();
 });
 allergenSelect.addEventListener("change", () => {
-  if (allergenCheckEnabled) {
-    document.querySelectorAll(".checkable").forEach((element) => {
-      element.replaceChildren(...highlightAllergens(element.dataset.value || ""));
-    });
-  }
+  refreshAllergenHighlights();
 });
 
 async function processPlatingPdf(file) {
@@ -104,11 +100,13 @@ async function processPlatingPdf(file) {
     platingPages.replaceChildren();
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
       await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+      drawMenuWarnings(canvas, viewport, content.items);
       platingPages.append(canvas);
     }
     platingResult.hidden = false;
@@ -265,6 +263,7 @@ function renderRows(rows) {
         td.textContent = value;
       } else {
         td.className = "checkable";
+        td.dataset.kind = index === 1 ? "menu" : "ingredients";
         td.dataset.value = value;
         td.append(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
       }
@@ -279,9 +278,7 @@ function highlightAllergens(value) {
     const text = document.createTextNode(value);
     return [text];
   }
-  const selectedTerms = allergenSelect.selectedOptions
-    ? [...allergenSelect.selectedOptions].flatMap((option) => allergenTerms[option.value])
-    : [];
+  const selectedTerms = getSelectedTerms();
   if (selectedTerms.length === 0) return [document.createTextNode(value)];
   const pattern = new RegExp(`(${selectedTerms.map(escapeRegExp).join("|")})`, "g");
   const fragments = [];
@@ -296,6 +293,45 @@ function highlightAllergens(value) {
   }
   fragments.push(document.createTextNode(value.slice(lastIndex)));
   return fragments;
+}
+
+function getSelectedTerms() {
+  return allergenSelect.selectedOptions
+    ? [...allergenSelect.selectedOptions].flatMap((option) => allergenTerms[option.value])
+    : [];
+}
+
+function hasSelectedAllergen(value) {
+  return getSelectedTerms().some((term) => value.includes(term));
+}
+
+function refreshAllergenHighlights() {
+  flaggedMenuTerms = [];
+  document.querySelectorAll(".checkable").forEach((element) => {
+    const value = element.dataset.value || "";
+    element.replaceChildren(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
+    if (allergenCheckEnabled && element.dataset.kind === "menu" && hasSelectedAllergen(value)) {
+      flaggedMenuTerms.push(normalize(value));
+    }
+  });
+}
+
+function drawMenuWarnings(canvas, viewport, items) {
+  if (!allergenCheckEnabled || flaggedMenuTerms.length === 0) return;
+  const context = canvas.getContext("2d");
+  context.strokeStyle = "#c92a2a";
+  context.lineWidth = 3;
+  items.filter((item) => flaggedMenuTerms.some((menu) => normalize(item.str).includes(menu))).forEach((item) => {
+    const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+    const width = (item.width || 30) * viewport.scale;
+    const height = Math.abs(item.transform[3]) * viewport.scale;
+    context.beginPath();
+    context.moveTo(x, y - height);
+    context.lineTo(x + width, y);
+    context.moveTo(x + width, y - height);
+    context.lineTo(x, y);
+    context.stroke();
+  });
 }
 
 function escapeRegExp(value) {
