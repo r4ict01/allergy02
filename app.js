@@ -328,6 +328,7 @@ function drawMenuWarnings(canvas, viewport, items) {
     .filter((item) => item.str.trim())
     .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5], source: item }));
   groupByLine(positioned)
+    .flatMap(splitLineByColumn)
     .filter((line) => flaggedMenuTerms.some((menu) => menuMatches(line.map((item) => item.text).join(""), menu)))
     .forEach((line) => {
     const first = line[0].source;
@@ -343,6 +344,17 @@ function drawMenuWarnings(canvas, viewport, items) {
     context.lineTo(x, y);
     context.stroke();
   });
+}
+
+function splitLineByColumn(line) {
+  const chunks = [];
+  line.forEach((item) => {
+    const current = chunks.at(-1);
+    const previous = current?.at(-1);
+    if (!current || item.x - previous.x > 45) chunks.push([item]);
+    else current.push(item);
+  });
+  return chunks;
 }
 
 function menuMatches(candidate, flaggedMenu) {
