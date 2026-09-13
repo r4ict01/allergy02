@@ -99,7 +99,12 @@ function parsePageItems(items) {
     const menu = lines
       .filter((line) => !line.some((item) => /\d/.test(item.text)))
       .map((line) => line.map((item) => item.text).join(""))
-      .filter((text) => text && !text.startsWith("※") && text.length > 1);
+      .filter((text) =>
+        text &&
+        !text.startsWith("※") &&
+        text.length > 1 &&
+        !/エネルギー|塩分|中学校|献立|材料/.test(text),
+      );
     return {
       date: `${date.match[1]}月${date.match[2]}日`,
       menu,
