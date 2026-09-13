@@ -15,11 +15,14 @@ const allergenSelect = document.querySelector("#allergen-select");
 const platingInput = document.querySelector("#plating-input");
 const platingDropZone = document.querySelector("#plating-drop-zone");
 const platingStatus = document.querySelector("#plating-status");
+const notationStatus = document.querySelector("#notation-status");
 const platingResult = document.querySelector("#plating-result");
 const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
 let flaggedMenuTerms = [];
 let platingFile = null;
+let mealMenuTerms = [];
+let platingLinesCache = [];
 
 const allergenTerms = {
   milk: ["牛乳", "乳", "（乳）", "(乳)", "チーズ", "ヨーグルト", "バター", "脱脂粉乳"],
@@ -106,9 +109,11 @@ async function processPlatingPdf(file) {
     }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     platingPages.replaceChildren();
+    const platingLines = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
+      platingLines.push(...getPlatingLines(content.items));
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
@@ -117,8 +122,10 @@ async function processPlatingPdf(file) {
       drawMenuWarnings(canvas, viewport, content.items);
       platingPages.append(canvas);
     }
+    platingLinesCache = platingLines;
     platingResult.hidden = false;
     platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を画像で表示しています。`;
+    verifyMenuNotation(platingLines);
   } catch (error) {
     console.error(error);
     platingStatus.textContent = "盛り付け表PDFの解析に失敗しました。";
@@ -296,6 +303,8 @@ function renderRows(rows) {
   const displayRows = rows.flatMap((row) =>
     row.dishes.map((dish) => ({ date: row.date, menu: dish.menu, ingredients: dish.ingredients.join("、") })),
   );
+  mealMenuTerms = displayRows.map((row) => row.menu);
+  verifyMenuNotation(platingLinesCache);
   resultNote.textContent = `${displayRows.length}件のメニューを表示しています。`;
   results.replaceChildren(...displayRows.map((row) => {
     const tr = document.createElement("tr");
@@ -310,6 +319,29 @@ function renderRows(rows) {
         if (index === 1) td.dataset.allergenSource = `${value} ${row.ingredients}`;
         if (index === 1 && allergenCheckEnabled && hasSelectedAllergen(td.dataset.allergenSource)) {
           td.classList.add("allergen-warning");
+        }
+
+        function getPlatingLines(items) {
+          const positioned = items
+            .filter((item) => item.str.trim())
+            .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5] }));
+          return groupByLine(positioned)
+            .flatMap(splitLineByColumn)
+            .map((line) => line.map((item) => item.text).join(""))
+            .filter(Boolean);
+        }
+
+        function verifyMenuNotation(platingLines) {
+          if (mealMenuTerms.length === 0 || platingLines.length === 0) {
+            notationStatus.textContent = "";
+            return;
+          }
+          const unmatched = mealMenuTerms.filter((menu) =>
+            !platingLines.some((line) => menuMatches(line, menu)),
+          );
+          notationStatus.textContent = unmatched.length === 0
+            ? "料理名の表記確認が自動で完了しました。"
+            : `料理名の表記確認が完了しました（未照合 ${unmatched.length}件）。`;
         }
         td.append(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
       }
@@ -443,6 +475,7 @@ function normalizeForMatch(value) {
     ["しょくパン", "食パン"],
     ["ぶたにく", "豚肉"],
     ["とりにく", "鶏肉"],
+    ["おさつにく", "おさつ肉"],
     ["しろみさかな", "白身魚"],
     ["かんこくふうやきにく", "韓国風焼き肉"],
     ["つぶマスタードやき", "粒マスタード焼き"],
