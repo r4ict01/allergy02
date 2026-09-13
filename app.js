@@ -191,7 +191,7 @@ function renderRows(rows) {
     const tr = document.createElement("tr");
     [row.date, row.menu.join("、"), row.ingredients].forEach((value, index) => {
       const td = document.createElement("td");
-      if (index === 0 || !allergenCheckEnabled) {
+      if (index !== 2 || !allergenCheckEnabled) {
         td.textContent = value;
       } else {
         td.className = "checkable";
