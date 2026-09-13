@@ -94,14 +94,14 @@ allergenSelect.addEventListener("change", () => {
 });
 
 async function processPlatingPdf(file) {
-  if ((!file.type.startsWith("image/") && file.type !== "application/pdf") || file.size > 20 * 1024 * 1024) {
+  if ((!isPdfFile(file) && !isImageFile(file)) || file.size > 20 * 1024 * 1024) {
     platingStatus.textContent = "20MB以下のPDFまたは画像ファイルを選択してください。";
     return;
   }
   platingFile = file;
   platingStatus.textContent = "盛り付け表を解析しています…";
   try {
-    if (file.type.startsWith("image/")) {
+    if (isImageFile(file)) {
       platingPages.replaceChildren(await imageToCanvas(file));
       platingResult.hidden = false;
       platingStatus.textContent = "盛り付け表の画像を表示しています。";
@@ -128,12 +128,12 @@ async function processPlatingPdf(file) {
     verifyMenuNotation(platingLines);
   } catch (error) {
     console.error(error);
-    platingStatus.textContent = "盛り付け表PDFの解析に失敗しました。";
+    platingStatus.textContent = `盛り付け表の読み込みに失敗しました: ${error.message || "不明なエラー"}`;
   }
 }
 
 async function processPdf(file) {
-  if ((!file.type.startsWith("image/") && file.type !== "application/pdf") || file.size > 20 * 1024 * 1024) {
+  if ((!isPdfFile(file) && !isImageFile(file)) || file.size > 20 * 1024 * 1024) {
     status.textContent = "20MB以下のPDFまたは画像ファイルを選択してください。";
     return;
   }
@@ -142,7 +142,7 @@ async function processPdf(file) {
   progress.value = 5;
   status.textContent = "PDFを解析しています…";
   try {
-    if (file.type.startsWith("image/")) {
+    if (isImageFile(file)) {
       if (!window.Tesseract) throw new Error("OCR library is unavailable");
       const result = await window.Tesseract.recognize(file, "jpn");
       renderOcrResult(result.data.text);
@@ -197,8 +197,16 @@ async function processPdf(file) {
     status.textContent = `${pdf.numPages}ページの解析が完了しました。`;
   } catch (error) {
     console.error(error);
-    status.textContent = "PDFの解析に失敗しました。別のPDFで試してください。";
+    status.textContent = `材料表の読み込みに失敗しました: ${error.message || "不明なエラー"}`;
   }
+}
+
+function isPdfFile(file) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
+function isImageFile(file) {
+  return file.type.startsWith("image/") || /\.(png|jpe?g|gif|webp)$/i.test(file.name);
 }
 
 function parsePageItems(items) {
