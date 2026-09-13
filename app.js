@@ -16,7 +16,6 @@ const platingInput = document.querySelector("#plating-input");
 const platingDropZone = document.querySelector("#plating-drop-zone");
 const platingStatus = document.querySelector("#plating-status");
 const platingResult = document.querySelector("#plating-result");
-const platingResults = document.querySelector("#plating-results");
 const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
 
@@ -102,23 +101,6 @@ async function processPlatingPdf(file) {
   platingStatus.textContent = "盛り付け表を解析しています…";
   try {
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-    const lines = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      lines.push(...groupByLine(content.items
-        .filter((item) => item.str.trim())
-        .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5] })))
-        .map((line) => line.map((item) => item.text).join("")));
-    }
-    const visibleLines = lines.filter(Boolean);
-    platingResults.replaceChildren(...visibleLines.map((line) => {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-      cell.textContent = line;
-      row.append(cell);
-      return row;
-    }));
     platingPages.replaceChildren();
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
