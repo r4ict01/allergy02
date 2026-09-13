@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>学校給食 材料表</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <p class="eyebrow">SCHOOL LUNCH</p>
+        <h1>学校給食 材料表</h1>
+        <p class="lead">給食のPDFをアップロードすると、日にち・メニュー・材料を一覧表示します。</p>
+      </header>
+
+      <section class="upload-card" aria-labelledby="upload-title">
+        <h2 id="upload-title">PDFを読み込む</h2>
+        <label class="drop-zone" id="drop-zone" for="pdf-input">
+          <span class="drop-icon" aria-hidden="true">↑</span>
+          <span><strong>PDFを選択</strong> またはここにドラッグ＆ドロップ</span>
+          <small>PDF形式・最大20MB</small>
+          <input id="pdf-input" type="file" accept="application/pdf" />
+        </label>
+        <div class="progress-area" aria-live="polite">
+          <p id="status">PDFを選択してください。</p>
+          <progress id="progress" max="100" value="0" hidden></progress>
+        </div>
+      </section>
+
+      <section id="result-section" hidden aria-labelledby="result-title">
+        <div class="result-heading">
+          <div>
+            <p class="eyebrow">RESULT</p>
+            <h2 id="result-title">給食一覧</h2>
+          </div>
+          <button id="clear-button" class="secondary-button" type="button">クリア</button>
+        </div>
+        <p id="result-note" class="result-note"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>日にち</th><th>メニュー</th><th>材料</th></tr>
+            </thead>
+            <tbody id="results"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

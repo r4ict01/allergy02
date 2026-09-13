@@ -1,0 +1,97 @@
+import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs";
+
+const input = document.querySelector("#pdf-input");
+const dropZone = document.querySelector("#drop-zone");
+const status = document.querySelector("#status");
+const progress = document.querySelector("#progress");
+const resultSection = document.querySelector("#result-section");
+const resultNote = document.querySelector("#result-note");
+const results = document.querySelector("#results");
+
+input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
+["dragenter", "dragover"].forEach((eventName) =>
+  dropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropZone.classList.add("is-dragging");
+  }),
+);
+["dragleave", "drop"].forEach((eventName) =>
+  dropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    dropZone.classList.remove("is-dragging");
+  }),
+);
+dropZone.addEventListener("drop", (event) => {
+  const file = event.dataTransfer.files[0];
+  if (file) processPdf(file);
+});
+document.querySelector("#clear-button").addEventListener("click", () => {
+  input.value = "";
+  resultSection.hidden = true;
+  results.replaceChildren();
+  status.textContent = "PDFを選択してください。";
+  progress.hidden = true;
+});
+
+async function processPdf(file) {
+  if (file.type !== "application/pdf" || file.size > 20 * 1024 * 1024) {
+    status.textContent = "20MB以下のPDFファイルを選択してください。";
+    return;
+  }
+
+  progress.hidden = false;
+  progress.value = 5;
+  status.textContent = "PDFを解析しています…";
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const pages = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => item.str).join(" "));
+      progress.value = 5 + (pageNumber / pdf.numPages) * 70;
+    }
+    const text = pages.join("\n");
+    const rows = parseRows(text);
+    if (rows.length === 0) {
+      status.textContent = "文字を読み取れませんでした。画像PDFのOCR対応は次の段階で追加できます。";
+      resultSection.hidden = false;
+      resultNote.textContent = "このPDFには抽出可能な文字情報がないようです。";
+      results.innerHTML = '<tr><td colspan="3" class="empty">表示できる給食データがありません。</td></tr>';
+      return;
+    }
+    renderRows(rows);
+    progress.value = 100;
+    status.textContent = `${pdf.numPages}ページの解析が完了しました。`;
+  } catch (error) {
+    console.error(error);
+    status.textContent = "PDFの解析に失敗しました。別のPDFで試してください。";
+  }
+}
+
+function parseRows(text) {
+  return text.split(/\n+/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
+    const date = line.match(/(\d{1,2})\s*月?\s*(\d{1,2})\s*日/);
+    if (!date) return [];
+    const rest = line.slice(date.index + date[0].length).trim();
+    const parts = rest.split(/\s{2,}|	+/).filter(Boolean);
+    return [{ date: `${date[1]}月${date[2]}日`, menu: parts[0] || "（未取得）", ingredients: parts.slice(1).join("、") || "（未取得）" }];
+  });
+}
+
+function renderRows(rows) {
+  resultSection.hidden = false;
+  resultNote.textContent = `${rows.length}件の給食データを表示しています。`;
+  results.replaceChildren(...rows.map((row) => {
+    const tr = document.createElement("tr");
+    [row.date, row.menu, row.ingredients].forEach((value) => {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.append(td);
+    });
+    return tr;
+  }));
+}
