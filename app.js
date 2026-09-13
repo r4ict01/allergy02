@@ -80,7 +80,7 @@ function parseRows(text) {
   const datePattern = /(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[月火水木金土日])?/g;
   const dates = [...normalized.matchAll(datePattern)];
 
-  return dates.map((date, index) => {
+  const rows = dates.map((date, index) => {
     const start = date.index + date[0].length;
     const end = dates[index + 1]?.index ?? normalized.length;
     const rest = normalized.slice(start, end).trim();
@@ -91,6 +91,12 @@ function parseRows(text) {
       ingredients: "（材料欄を読み取り中）",
     }];
   }).flat();
+
+  return rows.sort((a, b) => {
+    const [aMonth, aDay] = a.date.match(/\d+/g).map(Number);
+    const [bMonth, bDay] = b.date.match(/\d+/g).map(Number);
+    return aMonth - bMonth || aDay - bDay;
+  });
 }
 
 function renderRows(rows) {
