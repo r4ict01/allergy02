@@ -191,12 +191,12 @@ function renderRows(rows) {
     const tr = document.createElement("tr");
     [row.date, row.menu.join("、"), row.ingredients].forEach((value, index) => {
       const td = document.createElement("td");
-      if (index !== 2 || !allergenCheckEnabled) {
+      if (index !== 2) {
         td.textContent = value;
       } else {
         td.className = "checkable";
         td.dataset.value = value;
-        td.append(...highlightAllergens(value));
+        td.append(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
       }
       tr.append(td);
     });
