@@ -73,19 +73,24 @@ async function processPdf(file) {
 }
 
 function parseRows(text) {
-  return text.split(/\n+/).map((line) => line.trim()).filter(Boolean).flatMap((line) => {
-    const normalized = line.replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0));
-    const date = normalized.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[月火水木金土日])?/);
-    if (!date) return [];
-    const rest = normalized.slice(date.index + date[0].length).trim();
-    const parts = rest.split(/\s{2,}|\t+/).filter(Boolean);
-    const menu = parts.length > 1 ? parts : rest.split(/\s+/).filter(Boolean);
+  const normalized = text
+    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
+    .replace(/\s+/g, " ")
+    .trim();
+  const datePattern = /(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[月火水木金土日])?/g;
+  const dates = [...normalized.matchAll(datePattern)];
+
+  return dates.map((date, index) => {
+    const start = date.index + date[0].length;
+    const end = dates[index + 1]?.index ?? normalized.length;
+    const rest = normalized.slice(start, end).trim();
+    const menu = rest.split(/\s{2,}|\t+|\s+/).filter(Boolean);
     return [{
       date: `${date[1]}月${date[2]}日`,
       menu,
       ingredients: "（材料欄を読み取り中）",
     }];
-  });
+  }).flat();
 }
 
 function renderRows(rows) {
