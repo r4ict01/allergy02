@@ -51,11 +51,10 @@ async function processPdf(file) {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      pages.push(content.items.map((item) => item.str).join(" "));
+      pages.push(content.items);
       progress.value = 5 + (pageNumber / pdf.numPages) * 70;
     }
-    const text = pages.join("\n");
-    const rows = parseRows(text);
+    const rows = pages.flatMap(parsePageItems);
     if (rows.length === 0) {
       status.textContent = "文字を読み取れませんでした。画像PDFのOCR対応は次の段階で追加できます。";
       resultSection.hidden = false;
@@ -72,31 +71,64 @@ async function processPdf(file) {
   }
 }
 
-function parseRows(text) {
-  const normalized = text
-    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
-    .replace(/\s+/g, " ")
-    .trim();
-  const datePattern = /(\d{1,2})\s*月\s*(\d{1,2})\s*日(?:\s*[月火水木金土日])?/g;
-  const dates = [...normalized.matchAll(datePattern)];
+function parsePageItems(items) {
+  const placed = items
+    .filter((item) => item.str.trim())
+    .map((item) => ({
+      text: normalize(item.str),
+      x: item.transform[4],
+      y: item.transform[5],
+    }));
+  const datePattern = /(\d{1,2})\s*月\s*(\d{1,2})\s*日/;
+  const dates = placed
+    .map((item) => ({ ...item, match: item.text.match(datePattern) }))
+    .filter((item) => item.match);
+  if (dates.length === 0) return [];
 
-  const rows = dates.map((date, index) => {
-    const start = date.index + date[0].length;
-    const end = dates[index + 1]?.index ?? normalized.length;
-    const rest = normalized.slice(start, end).trim();
-    const menu = rest.split(/\s{2,}|\t+|\s+/).filter(Boolean);
-    return [{
-      date: `${date[1]}月${date[2]}日`,
+  const dateBands = [...new Set(dates.map((date) => Math.round(date.y / 10) * 10))].sort((a, b) => b - a);
+  const rows = dates.map((date) => {
+    const bandIndex = dateBands.findIndex((band) => Math.abs(band - date.y) < 8);
+    const lowerBound = dateBands[bandIndex + 1] === undefined ? 80 : dateBands[bandIndex + 1] + 20;
+    const sameBand = dates.filter((other) => Math.abs(other.y - date.y) < 8);
+    const left = sameBand.filter((other) => other.x < date.x).at(-1)?.x ?? date.x - 35;
+    const right = sameBand.find((other) => other.x > date.x)?.x ?? date.x + 70;
+    const columnItems = placed.filter((item) =>
+      item.x >= left && item.x < right && item.y < date.y && item.y > lowerBound,
+    );
+    const lines = groupByLine(columnItems);
+    const menu = lines
+      .filter((line) => !line.some((item) => /\d/.test(item.text)))
+      .map((line) => line.map((item) => item.text).join(""))
+      .filter((text) => text && !text.startsWith("※") && text.length > 1);
+    return {
+      date: `${date.match[1]}月${date.match[2]}日`,
       menu,
       ingredients: "（材料欄を読み取り中）",
-    }];
-  }).flat();
-
-  return rows.sort((a, b) => {
-    const [aMonth, aDay] = a.date.match(/\d+/g).map(Number);
-    const [bMonth, bDay] = b.date.match(/\d+/g).map(Number);
-    return aMonth - bMonth || aDay - bDay;
+    };
   });
+  return rows.sort(compareDates);
+}
+
+function groupByLine(items) {
+  const lines = [];
+  items.sort((a, b) => b.y - a.y || a.x - b.x).forEach((item) => {
+    const line = lines.find((candidate) => Math.abs(candidate.y - item.y) < 4);
+    if (line) line.items.push(item);
+    else lines.push({ y: item.y, items: [item] });
+  });
+  return lines.sort((a, b) => b.y - a.y).map((line) => line.items.sort((a, b) => a.x - b.x));
+}
+
+function normalize(value) {
+  return value
+    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
+    .replace(/\s+/g, "");
+}
+
+function compareDates(a, b) {
+  const [aMonth, aDay] = a.date.match(/\d+/g).map(Number);
+  const [bMonth, bDay] = b.date.match(/\d+/g).map(Number);
+  return aMonth - bMonth || aDay - bDay;
 }
 
 function renderRows(rows) {
