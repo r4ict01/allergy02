@@ -63,6 +63,25 @@
           </table>
         </div>
       </section>
+
+      <section class="upload-card plating-section" aria-labelledby="plating-title">
+        <h2 id="plating-title">盛り付け表PDFを読み込む</h2>
+        <label class="drop-zone" id="plating-drop-zone" for="plating-input">
+          <span class="drop-icon" aria-hidden="true">↑</span>
+          <span><strong>PDFを選択</strong> またはここにドラッグ＆ドロップ</span>
+          <small>PDF形式・最大20MB</small>
+          <input id="plating-input" type="file" accept="application/pdf" />
+        </label>
+        <p id="plating-status" class="progress-area">盛り付け表PDFを選択してください。</p>
+        <div id="plating-result" hidden>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>盛り付け表</th></tr></thead>
+              <tbody id="plating-results"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
     <script type="module" src="app.js"></script>
   </body>

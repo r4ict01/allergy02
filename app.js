@@ -12,6 +12,11 @@ const resultNote = document.querySelector("#result-note");
 const results = document.querySelector("#results");
 const allergenButton = document.querySelector("#allergen-button");
 const allergenSelect = document.querySelector("#allergen-select");
+const platingInput = document.querySelector("#plating-input");
+const platingDropZone = document.querySelector("#plating-drop-zone");
+const platingStatus = document.querySelector("#plating-status");
+const platingResult = document.querySelector("#plating-result");
+const platingResults = document.querySelector("#plating-results");
 let allergenCheckEnabled = false;
 
 const allergenTerms = {
@@ -27,6 +32,7 @@ const allergenTerms = {
 };
 
 input.addEventListener("change", () => input.files[0] && processPdf(input.files[0]));
+platingInput.addEventListener("change", () => platingInput.files[0] && processPlatingPdf(platingInput.files[0]));
 ["dragenter", "dragover"].forEach((eventName) =>
   dropZone.addEventListener(eventName, (event) => {
     event.preventDefault();
@@ -42,6 +48,22 @@ input.addEventListener("change", () => input.files[0] && processPdf(input.files[
 dropZone.addEventListener("drop", (event) => {
   const file = event.dataTransfer.files[0];
   if (file) processPdf(file);
+});
+["dragenter", "dragover"].forEach((eventName) =>
+  platingDropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    platingDropZone.classList.add("is-dragging");
+  }),
+);
+["dragleave", "drop"].forEach((eventName) =>
+  platingDropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    platingDropZone.classList.remove("is-dragging");
+  }),
+);
+platingDropZone.addEventListener("drop", (event) => {
+  const file = event.dataTransfer.files[0];
+  if (file) processPlatingPdf(file);
 });
 document.querySelector("#clear-button").addEventListener("click", () => {
   input.value = "";
@@ -75,6 +97,39 @@ async function processPdf(file) {
   if (file.type !== "application/pdf" || file.size > 20 * 1024 * 1024) {
     status.textContent = "20MB以下のPDFファイルを選択してください。";
     return;
+  }
+
+  async function processPlatingPdf(file) {
+    if (file.type !== "application/pdf" || file.size > 20 * 1024 * 1024) {
+      platingStatus.textContent = "20MB以下のPDFファイルを選択してください。";
+      return;
+    }
+    platingStatus.textContent = "盛り付け表を解析しています…";
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const lines = [];
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        lines.push(...groupByLine(content.items
+          .filter((item) => item.str.trim())
+          .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5] })))
+          .map((line) => line.map((item) => item.text).join("")));
+      }
+      const visibleLines = lines.filter(Boolean);
+      platingResults.replaceChildren(...visibleLines.map((line) => {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.textContent = line;
+        row.append(cell);
+        return row;
+      }));
+      platingResult.hidden = false;
+      platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を表示しています。`;
+    } catch (error) {
+      console.error(error);
+      platingStatus.textContent = "盛り付け表PDFの解析に失敗しました。";
+    }
   }
 
   progress.hidden = false;

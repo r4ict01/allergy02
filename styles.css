@@ -39,4 +39,6 @@ th { background: #f1f8f3; color: #365346; font-size: .9rem; }
 td:first-child { width: 16%; font-weight: 700; white-space: nowrap; }
 td:nth-child(2) { width: 29%; font-weight: 600; }
 .empty { padding: 26px 12px; color: #617069; text-align: center; }
+.plating-section { margin-top: 28px; }
+.plating-section .drop-zone { min-height: 150px; }
 @media (max-width: 600px) { .container { padding-top: 28px; } .upload-card, #result-section { padding: 20px; } }
