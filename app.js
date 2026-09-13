@@ -312,6 +312,29 @@ function compareDates(a, b) {
   return aMonth - bMonth || aDay - bDay;
 }
 
+function getPlatingLines(items) {
+  const positioned = items
+    .filter((item) => item.str.trim())
+    .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5] }));
+  return groupByLine(positioned)
+    .flatMap(splitLineByColumn)
+    .map((line) => line.map((item) => item.text).join(""))
+    .filter(Boolean);
+}
+
+function verifyMenuNotation(platingLines) {
+  if (mealMenuTerms.length === 0 || platingLines.length === 0) {
+    notationStatus.textContent = "";
+    return;
+  }
+  const unmatched = mealMenuTerms.filter((menu) =>
+    !platingLines.some((line) => menuMatches(line, menu)),
+  );
+  notationStatus.textContent = unmatched.length === 0
+    ? "料理名の表記確認が自動で完了しました。"
+    : `料理名の表記確認が完了しました（未照合 ${unmatched.length}件）。`;
+}
+
 function renderRows(rows) {
   resultSection.hidden = false;
   const displayRows = rows.flatMap((row) =>
@@ -333,29 +356,6 @@ function renderRows(rows) {
         if (index === 1) td.dataset.allergenSource = `${value} ${row.ingredients}`;
         if (index === 1 && allergenCheckEnabled && hasSelectedAllergen(td.dataset.allergenSource)) {
           td.classList.add("allergen-warning");
-        }
-
-        function getPlatingLines(items) {
-          const positioned = items
-            .filter((item) => item.str.trim())
-            .map((item) => ({ text: normalize(item.str), x: item.transform[4], y: item.transform[5] }));
-          return groupByLine(positioned)
-            .flatMap(splitLineByColumn)
-            .map((line) => line.map((item) => item.text).join(""))
-            .filter(Boolean);
-        }
-
-        function verifyMenuNotation(platingLines) {
-          if (mealMenuTerms.length === 0 || platingLines.length === 0) {
-            notationStatus.textContent = "";
-            return;
-          }
-          const unmatched = mealMenuTerms.filter((menu) =>
-            !platingLines.some((line) => menuMatches(line, menu)),
-          );
-          notationStatus.textContent = unmatched.length === 0
-            ? "料理名の表記確認が自動で完了しました。"
-            : `料理名の表記確認が完了しました（未照合 ${unmatched.length}件）。`;
         }
         td.append(...(allergenCheckEnabled ? highlightAllergens(value) : [document.createTextNode(value)]));
       }
