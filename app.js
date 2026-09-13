@@ -133,28 +133,35 @@ function parsePageItems(items) {
       columnOwner(item, placed, sameBand) === date,
     );
     const lines = groupByLine(columnItems);
-    const menu = lines
-      .filter((line) => !line.some((item) => /\d/.test(item.text)))
-      .map((line) => line.map((item) => item.text).join(""))
-      .filter((text) =>
-        text &&
-        !text.startsWith("※") &&
-        text.length > 1 &&
-        !/エネルギー|塩分|中学校|献立|材料/.test(text),
-      );
-    const ingredients = lines
-      .filter((line) => line.some((item) => /\d/.test(item.text)))
-      .map((line) => line.filter((item) => !/\d/.test(item.text)).map((item) => item.text).join(""))
-      .filter((text) => !/エネルギー|塩分/.test(text))
-      .filter(Boolean)
-      .join("、");
+    const dishes = [];
+    lines.forEach((line) => {
+      const text = line.map((item) => item.text).join("");
+      if (isMenuLine(line)) {
+        dishes.push({ menu: text, ingredients: [] });
+      } else if (dishes.length && line.some((item) => /\d/.test(item.text))) {
+        const ingredients = line
+          .filter((item) => !/\d/.test(item.text))
+          .map((item) => item.text)
+          .join("");
+        if (ingredients && !/エネルギー|塩分/.test(ingredients)) {
+          dishes.at(-1).ingredients.push(ingredients);
+        }
+      }
+    });
     return {
       date: `${date.match[1]}月${date.match[2]}日`,
-      menu,
-      ingredients: ingredients || "（材料を取得できませんでした）",
+      dishes,
     };
   });
   return rows.sort(compareDates);
+}
+
+function isMenuLine(line) {
+  const text = line.map((item) => item.text).join("");
+  return !line.some((item) => /\d/.test(item.text)) &&
+    !text.startsWith("※") &&
+    text.length > 1 &&
+    !/エネルギー|塩分|中学校|献立|材料/.test(text);
 }
 
 function columnOwner(item, placed, dateBand) {
@@ -198,10 +205,13 @@ function compareDates(a, b) {
 
 function renderRows(rows) {
   resultSection.hidden = false;
-  resultNote.textContent = `${rows.length}件の給食データを表示しています。`;
-  results.replaceChildren(...rows.map((row) => {
+  const displayRows = rows.flatMap((row) =>
+    row.dishes.map((dish) => ({ date: row.date, menu: dish.menu, ingredients: dish.ingredients.join("、") })),
+  );
+  resultNote.textContent = `${displayRows.length}件のメニューを表示しています。`;
+  results.replaceChildren(...displayRows.map((row) => {
     const tr = document.createElement("tr");
-    [row.date, row.menu.join("、"), row.ingredients].forEach((value, index) => {
+    [row.date, row.menu, row.ingredients || "（材料を取得できませんでした）"].forEach((value, index) => {
       const td = document.createElement("td");
       if (index === 0) {
         td.textContent = value;
