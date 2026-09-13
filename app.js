@@ -89,9 +89,14 @@ function parsePageItems(items) {
   const rows = dates.map((date) => {
     const bandIndex = dateBands.findIndex((band) => Math.abs(band - date.y) < 8);
     const lowerBound = dateBands[bandIndex + 1] === undefined ? 80 : dateBands[bandIndex + 1] + 20;
-    const sameBand = dates.filter((other) => Math.abs(other.y - date.y) < 8);
-    const left = sameBand.filter((other) => other.x < date.x).at(-1)?.x ?? date.x - 35;
-    const right = sameBand.find((other) => other.x > date.x)?.x ?? date.x + 70;
+    const sameBand = dates
+      .filter((other) => Math.abs(other.y - date.y) < 8)
+      .sort((a, b) => a.x - b.x);
+    const datePosition = sameBand.indexOf(date);
+    const previousDate = sameBand[datePosition - 1];
+    const nextDate = sameBand[datePosition + 1];
+    const left = previousDate ? previousDate.x - 10 : date.x - 35;
+    const right = nextDate ? nextDate.x - 10 : date.x + 70;
     const columnItems = placed.filter((item) =>
       item.x >= left && item.x < right && item.y < date.y && item.y > lowerBound,
     );
