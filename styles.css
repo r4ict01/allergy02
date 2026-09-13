@@ -41,4 +41,6 @@ td:nth-child(2) { width: 29%; font-weight: 600; }
 .empty { padding: 26px 12px; color: #617069; text-align: center; }
 .plating-section { margin-top: 28px; }
 .plating-section .drop-zone { min-height: 150px; }
+.plating-pages { display: grid; gap: 16px; margin-top: 18px; }
+.plating-pages canvas { width: 100%; height: auto; border: 1px solid #dce8df; border-radius: 8px; }
 @media (max-width: 600px) { .container { padding-top: 28px; } .upload-card, #result-section { padding: 20px; } }

@@ -17,6 +17,7 @@ const platingDropZone = document.querySelector("#plating-drop-zone");
 const platingStatus = document.querySelector("#plating-status");
 const platingResult = document.querySelector("#plating-result");
 const platingResults = document.querySelector("#plating-results");
+const platingPages = document.querySelector("#plating-pages");
 let allergenCheckEnabled = false;
 
 const allergenTerms = {
@@ -124,8 +125,23 @@ async function processPdf(file) {
         row.append(cell);
         return row;
       }));
+      platingPages.replaceChildren();
+      if (visibleLines.length === 0) {
+        platingStatus.textContent = "文字情報がないため、盛り付け表を画像として表示しています。";
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          const page = await pdf.getPage(pageNumber);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+          platingPages.append(canvas);
+        }
+      }
       platingResult.hidden = false;
-      platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を表示しています。`;
+      if (visibleLines.length > 0) {
+        platingStatus.textContent = `${pdf.numPages}ページの盛り付け表を表示しています。`;
+      }
     } catch (error) {
       console.error(error);
       platingStatus.textContent = "盛り付け表PDFの解析に失敗しました。";
