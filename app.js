@@ -92,13 +92,10 @@ function parsePageItems(items) {
     const sameBand = dates
       .filter((other) => Math.abs(other.y - date.y) < 8)
       .sort((a, b) => a.x - b.x);
-    const datePosition = sameBand.indexOf(date);
-    const previousDate = sameBand[datePosition - 1];
-    const nextDate = sameBand[datePosition + 1];
-    const left = previousDate ? previousDate.x - 10 : date.x - 35;
-    const right = nextDate ? nextDate.x - 10 : date.x + 70;
     const columnItems = placed.filter((item) =>
-      item.x >= left && item.x < right && item.y < date.y && item.y > lowerBound,
+      item.y < date.y &&
+      item.y > lowerBound &&
+      columnOwner(item, placed, sameBand) === date,
     );
     const lines = groupByLine(columnItems);
     const menu = lines
@@ -110,13 +107,35 @@ function parsePageItems(items) {
         text.length > 1 &&
         !/エネルギー|塩分|中学校|献立|材料/.test(text),
       );
+    const ingredients = lines
+      .filter((line) => line.some((item) => /\d/.test(item.text)))
+      .map((line) => line.map((item) => item.text).join(" "))
+      .filter((text) => !/エネルギー|塩分/.test(text))
+      .join("、");
     return {
       date: `${date.match[1]}月${date.match[2]}日`,
       menu,
-      ingredients: "（材料欄を読み取り中）",
+      ingredients: ingredients || "（材料を取得できませんでした）",
     };
   });
   return rows.sort(compareDates);
+}
+
+function columnOwner(item, placed, dateBand) {
+  if (/\d/.test(item.text)) {
+    const sameLineText = placed
+      .filter((candidate) =>
+        !/\d/.test(candidate.text) &&
+        candidate.x < item.x &&
+        item.x - candidate.x < 80 &&
+        Math.abs(candidate.y - item.y) < 4,
+      )
+      .sort((a, b) => b.x - a.x)[0];
+    if (sameLineText) item = sameLineText;
+  }
+  return dateBand.reduce((nearest, candidate) =>
+    Math.abs(candidate.x - item.x) < Math.abs(nearest.x - item.x) ? candidate : nearest,
+  );
 }
 
 function groupByLine(items) {
