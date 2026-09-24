@@ -66,10 +66,30 @@
 
       <section class="upload-card plating-section" aria-labelledby="plating-title">
         <h2 id="plating-title">盛り付け表</h2>
-        <p id="plating-status" class="progress-area">材料表PDFの2ページ目を自動表示します。</p>
+        <p id="plating-status" class="progress-area">材料表PDFの2ページ目をメニュー一覧1として表示します。</p>
         <p id="notation-status" class="progress-area"></p>
         <div id="plating-result" hidden>
           <div id="plating-pages" class="plating-pages"></div>
+          <div id="menu-comparison" class="menu-comparison" hidden>
+            <h3>メニュー一覧の照合</h3>
+            <p id="menu-comparison-note" class="progress-area"></p>
+            <div class="menu-lists">
+              <div>
+                <h4>メニュー一覧1（2ページ目）</h4>
+                <ul id="menu-list-one"></ul>
+              </div>
+              <div>
+                <h4>メニュー一覧2（3・4ページ目）</h4>
+                <ul id="menu-list-two"></ul>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>一覧1の表記</th><th>一覧2の対応表記</th><th>判定</th></tr></thead>
+                <tbody id="menu-comparison-rows"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
     </main>

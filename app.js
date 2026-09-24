@@ -16,6 +16,11 @@ const platingStatus = document.querySelector("#plating-status");
 const notationStatus = document.querySelector("#notation-status");
 const platingResult = document.querySelector("#plating-result");
 const platingPages = document.querySelector("#plating-pages");
+const menuComparison = document.querySelector("#menu-comparison");
+const menuComparisonNote = document.querySelector("#menu-comparison-note");
+const menuListOne = document.querySelector("#menu-list-one");
+const menuListTwo = document.querySelector("#menu-list-two");
+const menuComparisonRows = document.querySelector("#menu-comparison-rows");
 let allergenCheckEnabled = false;
 let flaggedMenuTerms = [];
 let materialPdf = null;
@@ -61,8 +66,12 @@ document.querySelector("#clear-button").addEventListener("click", () => {
   platingLinesCache = [];
   platingPages.replaceChildren();
   platingResult.hidden = true;
-  platingStatus.textContent = "材料表PDFの2ページ目を自動表示します。";
+  platingStatus.textContent = "材料表PDFの2ページ目をメニュー一覧1として表示します。";
   notationStatus.textContent = "";
+  menuComparison.hidden = true;
+  menuListOne.replaceChildren();
+  menuListTwo.replaceChildren();
+  menuComparisonRows.replaceChildren();
   allergenCheckEnabled = false;
   flaggedMenuTerms = [];
   allergenButton.classList.remove("is-active");
@@ -145,7 +154,7 @@ async function processPdf(file) {
     }
     renderRows(rows);
     materialPdf = pdf;
-    if (pdf.numPages >= 2) await renderPlatingPage(pdf);
+    if (pdf.numPages >= 2) await renderPlatingPages(pdf);
     else platingStatus.textContent = "材料表PDFに2ページ目がないため、盛り付け表を表示できません。";
     progress.value = 100;
     status.textContent = `${pdf.numPages}ページの解析が完了しました。`;
@@ -155,20 +164,79 @@ async function processPdf(file) {
   }
 }
 
-async function renderPlatingPage(pdf) {
-  const page = await pdf.getPage(2);
-  const content = await page.getTextContent();
-  const viewport = page.getViewport({ scale: 1.5 });
-  const canvas = document.createElement("canvas");
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-  drawMenuWarnings(canvas, viewport, content.items);
-  platingPages.replaceChildren(canvas);
-  platingLinesCache = getPlatingLines(content.items);
+async function renderPlatingPages(pdf) {
+  const pages = [];
+  for (let pageNumber = 2; pageNumber <= Math.min(pdf.numPages, 4); pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    drawMenuWarnings(canvas, viewport, content.items);
+    pages.push({ pageNumber, canvas, lines: getPlatingLines(content.items) });
+  }
+  platingPages.replaceChildren(...pages.map(({ pageNumber, canvas }) => {
+    const wrapper = document.createElement("div");
+    const label = document.createElement("p");
+    label.className = "progress-area";
+    label.textContent = `ページ${pageNumber}`;
+    wrapper.append(label, canvas);
+    return wrapper;
+  }));
+  platingLinesCache = pages[0]?.lines || [];
   platingResult.hidden = false;
-  platingStatus.textContent = "材料表PDFの2ページ目を盛り付け表として表示しています。";
+  platingStatus.textContent = pdf.numPages >= 4
+    ? "2ページ目をメニュー一覧1、3・4ページ目をメニュー一覧2として表示しています。"
+    : "材料表PDFの2ページ目をメニュー一覧1として表示しています（3・4ページ目がないため照合は省略）。";
+  if (pdf.numPages >= 4) {
+    renderMenuComparison(pages[0].lines, pages.slice(1).flatMap((page) => page.lines));
+  }
   verifyMenuNotation(platingLinesCache);
+}
+
+function renderMenuComparison(listOne, listTwo) {
+  const first = uniqueMenuLines(listOne);
+  const second = uniqueMenuLines(listTwo);
+  menuListOne.replaceChildren(...first.map(createMenuListItem));
+  menuListTwo.replaceChildren(...second.map(createMenuListItem));
+  menuComparisonRows.replaceChildren(...first.map((menu) => {
+    const match = second.find((candidate) => menuMatches(candidate, menu));
+    const row = document.createElement("tr");
+    [menu, match || "—", match ? "同じメニュー" : "一覧2に該当なし"].forEach((value, index) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      if (index === 2) cell.className = match ? "match" : "unmatched";
+      row.append(cell);
+    });
+    return row;
+  }));
+  const unmatchedSecond = second.filter((menu) => !first.some((candidate) => menuMatches(candidate, menu)));
+  unmatchedSecond.forEach((menu) => {
+    const row = document.createElement("tr");
+    [ "—", menu, "一覧1に該当なし" ].forEach((value, index) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      if (index === 2) cell.className = "unmatched";
+      row.append(cell);
+    });
+    menuComparisonRows.append(row);
+  });
+  menuComparisonNote.textContent = `一覧1 ${first.length}件、一覧2 ${second.length}件。表記ゆれを吸収して同じメニューとして照合しました。`;
+  menuComparison.hidden = false;
+}
+
+function uniqueMenuLines(lines) {
+  return [...new Set(lines
+    .map((line) => line.replace(/^[0-9０-９]+[.\s]*/, ""))
+    .filter((line) => line.length > 1 && !/^(中学校|盛り付け図|食育センター|令和|主食|月|火|水|木|金|献立)/.test(line)))];
+}
+
+function createMenuListItem(menu) {
+  const item = document.createElement("li");
+  item.textContent = menu;
+  return item;
 }
 
 function isPdfFile(file) {
@@ -377,7 +445,7 @@ function refreshAllergenHighlights() {
       flaggedMenuTerms.push(normalize(value));
     }
   });
-  if (materialPdf) renderPlatingPage(materialPdf);
+  if (materialPdf) renderPlatingPages(materialPdf);
 }
 
 function drawMenuWarnings(canvas, viewport, items) {

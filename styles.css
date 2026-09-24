@@ -43,4 +43,14 @@ td:nth-child(2) { width: 29%; font-weight: 600; }
 .plating-section .drop-zone { min-height: 150px; }
 .plating-pages { display: grid; gap: 16px; margin-top: 18px; }
 .plating-pages canvas { width: 100%; height: auto; border: 1px solid #dce8df; border-radius: 8px; }
+.menu-comparison { margin-top: 28px; border-top: 1px solid #dce8df; padding-top: 24px; }
+.menu-comparison h3 { margin: 0 0 12px; font-size: 1.15rem; }
+.menu-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin: 12px 0 20px; }
+.menu-lists h4 { margin: 0 0 6px; color: #365346; font-size: .95rem; }
+.menu-lists ul { margin: 0; padding-left: 1.2rem; color: #617069; }
+.menu-lists li + li { margin-top: 3px; }
+.menu-comparison td:last-child { white-space: nowrap; font-weight: 700; }
+.match { color: #2f8f69; }
+.unmatched { color: #b42323; }
 @media (max-width: 600px) { .container { padding-top: 28px; } .upload-card, #result-section { padding: 20px; } }
+@media (max-width: 600px) { .menu-lists { grid-template-columns: 1fr; } }
